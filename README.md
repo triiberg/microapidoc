@@ -1,6 +1,6 @@
 # Use it in your project
 
-should look something like this: first do your endpoints then, the part that generates doc and creates 2 endpoints
+Your main.go looks like this: usual endpoints, then the doc conf (use .env or something to make it clear what env it is)
 
 ```
 package main 
@@ -73,3 +73,37 @@ func main() {
 }
 
 ```
+
+And your controller's annotation look like this:
+
+```
+package controllers
+
+import (
+	"apidocexample/internal/models"
+	"fmt"
+
+	"github.com/gin-gonic/gin"
+)
+
+// #Group GetAuth
+// #Summary GetAuth controller to controll auth
+// #GoodResponse string
+// #BadResponse string
+// #QueryParameters id uuid.UUID
+// #QueryParameters name string
+// #HeaderParameters xxx-rate uuid.UUID
+// #HeaderParameters yyy-date string
+// #Label production, development
+func (c *Controller) GetAuth(ctx *gin.Context) {
+	fmt.Println(ctx.GetHeader("Bearer"))
+	fmt.Println(ctx.GetHeader("Token"))
+	fmt.Println(ctx.GetHeader("xxx-rate"))
+	fmt.Println(ctx.GetHeader("yyy-date"))
+	fmt.Println(ctx.Query("id"))
+	fmt.Println(ctx.Query("name"))
+	ctx.Data(200, "text/plain", []byte("Auth controller to controll auth"))
+	return
+}
+```
+
