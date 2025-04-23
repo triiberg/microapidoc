@@ -1,4 +1,4 @@
-module microapidoc
+module github.com/triiberg/microapidoc
 
 go 1.22.0
 
