@@ -45,7 +45,7 @@ func main() {
 		})
 	}
 	// generic settings
-	luunjaHandler := microapidoc.GeneralDoc{
+	microApiDocConf := microapidoc.GeneralDoc{
 		BuildTag:            "v1.0.0",
 		SearchControllersIn: "./cmd/controllers",
 		AllRoutes:           routes,
@@ -60,7 +60,7 @@ func main() {
 		},
 	}
 	// set handlers
-	docController := microapidoc.NewMicroapidoc(luunjaHandler)
+	docController := microapidoc.NewMicroapidoc(microApiDocConf)
 	doc := r.Group("/microapidocs")
 	{
 		doc.GET("/doc.json", docController.DocHAndler)
