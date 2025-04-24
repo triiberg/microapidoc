@@ -1,7 +1,6 @@
 package microapidoc
 
 import (
-	"encoding/json"
 	"fmt"
 	"go/ast"
 	"go/parser"
@@ -309,7 +308,6 @@ func (c *Microapidoc) DocHAndler(ctx *gin.Context) {
 				}
 				if endpoint.AuthHeaderOn {
 					for _, authHeader := range c.Doc.AuthHeaderNames {
-						fmt.Println("AUTH HEADERS", authHeader, " for ", comment.FunctionName)
 						endpoint.AuthHeaders = append(endpoint.AuthHeaders, InputParameter{
 							Name: authHeader,
 							Type: "string",
@@ -338,21 +336,6 @@ func (c *Microapidoc) DocHAndler(ctx *gin.Context) {
 	}
 
 	payload.Groups = groups
-
-	//return payload
-	//doc.GET("", func(ctx *gin.Context) {
-	//		ctx.JSON(200, luunjaHandler)
-	//})
 	ctx.JSON(200, payload)
 	return
-}
-
-func ToPrettyJSON(v interface{}) string {
-
-	jsonBytes, err := json.MarshalIndent(v, "", "  ")
-	if err != nil {
-		return fmt.Sprintf("Error: %v", err)
-	}
-
-	return string(jsonBytes)
 }
