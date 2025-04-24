@@ -1,6 +1,10 @@
 # Use it in your project
 
-Your main.go looks like this: usual endpoints, then the doc conf (use .env or something to make it clear what env it is)
+Your main.go looks like this: usual endpoints, then the doc conf (use .env or something to make it clear what env it is).
+
+* Create Gin endpoints
+* Add part between // START OF MICROAPIDOC & // END
+* When service starts, it collects annotations from the controllers and reads all pathes
 
 ```
 package main 
@@ -28,10 +32,10 @@ func main() {
 		auth.GET("/get-header-auth", rest.GetAuth)
 	}
 
-	apiV2 := r.Group("/products")
+	products := r.Group("/products")
 	{
-		apiV2.GET("", rest.GetProducts)
-		apiV2.POST("create", rest.PostNewProducts)
+		products.GET("", rest.GetProducts)
+		products.POST("create", rest.PostNewProducts)
 	}
 
 	// START OF MICROAPIDOC
@@ -46,7 +50,7 @@ func main() {
 	}
 	// generic settings
 	microApiDocConf := microapidoc.GeneralDoc{
-		BuildTag:            "v1.0.0",
+		BuildTag:            GitTag,
 		SearchControllersIn: "./cmd/controllers",
 		AllRoutes:           routes,
 		Name:                "API Doc test project",
