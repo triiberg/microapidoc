@@ -107,7 +107,7 @@ func GenerateJSONExamplesFromModels(root string) (map[string]string, error) {
 		}
 
 		fset := token.NewFileSet()
-		node, err := parser.ParseFile(fset, path, nil, parser.AllErrors)
+		node, err := parser.ParseFile(fset, path, nil, parser.ParseComments)
 		if err != nil {
 			fmt.Printf("Failed to parse %s: %v\n", path, err)
 			return nil
@@ -166,12 +166,16 @@ func GenerateJSONExamplesFromModels(root string) (map[string]string, error) {
 					}
 				}
 
+				// Use the package name as a prefix for the model name
+				packageName := filepath.Base(filepath.Dir(path))
+				modelName := fmt.Sprintf("%s.%s", packageName, typeSpec.Name.Name)
+
 				jsonObj := "{"
 				for k, v := range jsonExample {
 					jsonObj += fmt.Sprintf("\"%s\": \"%v\",", k, v)
 				}
 				jsonObj = strings.TrimSuffix(jsonObj, ",") + "}" // Remove trailing comma and close the JSON object
-				examples[typeSpec.Name.Name] = fmt.Sprintf("%s", jsonObj)
+				examples[modelName] = jsonObj
 			}
 		}
 
