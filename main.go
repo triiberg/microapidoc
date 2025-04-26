@@ -7,6 +7,7 @@ import (
 	"go/token"
 	"os"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
@@ -20,6 +21,7 @@ type GeneralDoc struct {
 	BuildTag                 string
 	Started                  string
 	SearchControllersIn      string
+	SearchModelsIn           string
 	AllRoutes                []RouteInfo
 	Name                     string
 	BaseUrl                  string
@@ -39,6 +41,7 @@ type ConfigPayload struct {
 	ResponseHeaders []ResponseHeaders `json:"responseHeaders,omitempty"`
 	AuthHeaders     []AuthHeaders     `json:"authHeaders,omitempty"`
 	Groups          []EndpointGroups  `json:"groups,omitempty"`
+	ExampleJsons    map[string]string `json:"exampleJsons,omitempty"` // json examples for the models
 }
 type ResponseHeaders struct {
 	Name  string `json:"name,omitempty"`
@@ -88,6 +91,94 @@ type OneComment struct {
 	PathParameters   []InputParameter
 	QueryParameters  []InputParameter
 	BodyParameters   []InputParameter
+}
+
+func GenerateJSONExamplesFromModels(root string) (map[string]string, error) {
+	examples := make(map[string]string)
+
+	err := filepath.Walk(root, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Skip non-Go files and test files
+		if !strings.HasSuffix(path, ".go") {
+			return nil
+		}
+
+		fset := token.NewFileSet()
+		node, err := parser.ParseFile(fset, path, nil, parser.AllErrors)
+		if err != nil {
+			fmt.Printf("Failed to parse %s: %v\n", path, err)
+			return nil
+		}
+
+		for _, decl := range node.Decls {
+			genDecl, ok := decl.(*ast.GenDecl)
+			if !ok || genDecl.Tok != token.TYPE {
+				continue
+			}
+
+			for _, spec := range genDecl.Specs {
+				typeSpec, ok := spec.(*ast.TypeSpec)
+				if !ok {
+					continue
+				}
+
+				structType, ok := typeSpec.Type.(*ast.StructType)
+				if !ok {
+					continue
+				}
+
+				jsonExample := make(map[string]interface{})
+				for _, field := range structType.Fields.List {
+					fieldName := field.Names[0].Name
+					jsonTag := ""
+					if field.Tag != nil {
+						tag := reflect.StructTag(strings.Trim(field.Tag.Value, "`"))
+						jsonTag = tag.Get("json")
+					}
+					if jsonTag == "" || jsonTag == "-" {
+						jsonTag = fieldName
+					} else {
+						jsonTag = strings.Split(jsonTag, ",")[0]
+					}
+
+					// Add a placeholder value based on the field type
+					switch fieldType := field.Type.(type) {
+					case *ast.Ident:
+						switch fieldType.Name {
+						case "string":
+							jsonExample[jsonTag] = "example string"
+						case "int", "int32", "int64":
+							jsonExample[jsonTag] = 123
+						case "float32", "float64":
+							jsonExample[jsonTag] = 123.45
+						case "bool":
+							jsonExample[jsonTag] = true
+						default:
+							jsonExample[jsonTag] = nil
+						}
+					case *ast.ArrayType:
+						jsonExample[jsonTag] = []interface{}{"example"}
+					default:
+						jsonExample[jsonTag] = nil
+					}
+				}
+
+				jsonObj := "{"
+				for k, v := range jsonExample {
+					jsonObj += fmt.Sprintf("\"%s\": \"%v\",", k, v)
+				}
+				jsonObj = strings.TrimSuffix(jsonObj, ",") + "}" // Remove trailing comma and close the JSON object
+				examples[typeSpec.Name.Name] = fmt.Sprintf("%s", jsonObj)
+			}
+		}
+
+		return nil
+	})
+
+	return examples, err
 }
 
 func ParseFiles(root string) (comments []OneComment, err error) {
@@ -336,6 +427,15 @@ func (c *Microapidoc) DocHAndler(ctx *gin.Context) {
 	}
 
 	payload.Groups = groups
+
+	// generate json examples
+	jsons, err := GenerateJSONExamplesFromModels(c.Doc.SearchModelsIn)
+	if err != nil {
+		fmt.Println("Error generating JSON examples:", err)
+	} else {
+		payload.ExampleJsons = jsons
+	}
+
 	ctx.JSON(200, payload)
 	return
 }

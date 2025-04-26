@@ -474,12 +474,12 @@ func (c *Microapidoc) DocIndexHAndler(ctx *gin.Context) {
             document.getElementById('api-title').textContent = apiDoc.title || 'API Documentation';
 
             // Set build
-            document.getElementById('build-number').textContent = apiDoc.build || 'v0.0.0';
+            document.getElementById('build-number').textContent = apiDoc.buildTag || 'v0.0.0';
 
             // Set service started time
             document.getElementById('started-time').textContent = apiDoc.started || 'yyyy-mm-dd hh:mm:ss';
 
-            document.getElementById('auth-default').textContent = 'Auth default: on' || 'Auth default: off';
+            document.getElementById('auth-default').textContent = apiDoc.authDefaultMode ? 'Auth default: on' : 'Auth default: off';
             
             // Set header color if specified
             if (apiDoc.headerColor) {
@@ -612,26 +612,59 @@ func (c *Microapidoc) DocIndexHAndler(ctx *gin.Context) {
                         
                         const bodyParamTitle = document.createElement('div');
                         bodyParamTitle.className = 'parameter-group-title';
-                        bodyParamTitle.textContent = 'Body Parameters';
+                        // Create a string with all body parameter names and types
+                        const paramInfo = endpoint.bodyParameters.map(function(param) {
+                            return param.name + ' (' + param.type + ')';
+                        }).join(', ');
+                        bodyParamTitle.textContent = 'Body Parameters: ' + paramInfo;
                         bodyParamGroup.appendChild(bodyParamTitle);
                         
                         if (isExecutable) {
                             const textareaWrapper = document.createElement('div');
                             textareaWrapper.className = 'textarea-wrapper';
                             
-                            // Create a default JSON structure based on the body parameters
-                            let defaultJson = {};
-                            endpoint.bodyParameters.forEach(function(param) {
-                                // Handle array types
-                                if (param.type.startsWith('[]')) {
-                                    defaultJson[param.name] = [];
-                                } else {
-                                    defaultJson[param.name] = '';
+                            // Use example JSON if available, otherwise create a default structure
+                            let defaultJsonText = '';
+                            
+                            // Check if we have body parameters with types that match examples in exampleJsons
+                            if (apiDoc.exampleJsons) {
+                                // Find the first body parameter with a type that matches an example
+                                const paramWithExample = endpoint.bodyParameters.find(function(param) {
+                                    return apiDoc.exampleJsons[param.type];
+                                });
+                                
+                                if (paramWithExample) {
+                                    // Use the example JSON for this parameter type
+                                    defaultJsonText = apiDoc.exampleJsons[paramWithExample.type];
+                                    
+                                    // Try to parse it to ensure it's valid JSON
+                                    try {
+                                        // If it's already a JSON object, stringify it properly
+                                        const parsedJson = JSON.parse(defaultJsonText);
+                                        defaultJsonText = JSON.stringify(parsedJson, null, 2);
+                                    } catch (e) {
+                                        // If it's not valid JSON, use it as is (it might be a string representation)
+                                        console.warn("Example JSON for " + paramWithExample.type + " is not valid JSON");
+                                    }
                                 }
-                            });
+                            }
+                            
+                            // If no matching example was found, create a default structure
+                            if (!defaultJsonText) {
+                                let defaultJson = {};
+                                endpoint.bodyParameters.forEach(function(param) {
+                                    // Handle array types
+                                    if (param.type.startsWith('[]')) {
+                                        defaultJson[param.name] = [];
+                                    } else {
+                                        defaultJson[param.name] = '';
+                                    }
+                                });
+                                defaultJsonText = JSON.stringify(defaultJson, null, 2);
+                            }
                             
                             const textareaHtml = '<textarea id="body-param-' + groupIndex + '-' + endpointIndex + 
-                                '" placeholder="Enter request body">' + JSON.stringify(defaultJson, null, 2) + '</textarea>';
+                                '" placeholder="Enter request body">' + defaultJsonText + '</textarea>';
                             textareaWrapper.innerHTML = textareaHtml;
                             bodyParamGroup.appendChild(textareaWrapper);
                         } else {
@@ -797,6 +830,7 @@ func (c *Microapidoc) DocIndexHAndler(ctx *gin.Context) {
         function executeRequest(e) {
             const endpointId = e.target.getAttribute('data-endpoint');
             const idParts = endpointId.split('-');
+            
             const groupIndex = parseInt(idParts[0]);
             const endpointIndex = parseInt(idParts[1]);
             
@@ -982,7 +1016,8 @@ func (c *Microapidoc) DocIndexHAndler(ctx *gin.Context) {
             });
     </script>
 </body>
-</html>`
+</html>
+`
 
 	ctx.Data(200, "text/html; charset=utf-8", []byte(indexHtml))
 	return
