@@ -132,6 +132,9 @@ func GenerateJSONExamplesFromModels(root string) (map[string]string, error) {
 
 				jsonExample := make(map[string]interface{})
 				for _, field := range structType.Fields.List {
+					if len(field.Names) == 0 {
+						continue // Skip fields without a name (composed or embedded fields)
+					}
 					fieldName := field.Names[0].Name
 					jsonTag := ""
 					if field.Tag != nil {
